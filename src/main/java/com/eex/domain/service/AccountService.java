@@ -41,7 +41,7 @@ public class AccountService {
                 account.setName(accountDetails.getName());
             }
             if (accountDetails.getAmount() != null) {
-                account.setAmount(accountDetails.getAmount());
+                throw new IllegalArgumentException("Cannot change amount of client");
             }
             if (accountDetails.getClientId() != null) {
                 account.setClientId(accountDetails.getClientId());

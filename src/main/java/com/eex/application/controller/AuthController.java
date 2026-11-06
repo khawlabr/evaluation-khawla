@@ -5,12 +5,13 @@ import com.eex.application.dto.LoginRequest;
 import com.eex.domain.entity.User;
 import com.eex.domain.service.UserService;
 import com.eex.domain.util.JwtUtil;
-import com.eex.domain.util.PasswordUtil;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,9 +26,10 @@ public class AuthController {
     private final JwtUtil jwtUtil;
 
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
+    private final PasswordEncoder passwordEncoder;
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest loginRequest) {
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest loginRequest) {
         logger.info("Tentative de connexion pour l'utilisateur : " + loginRequest.getUsername());
 
         List<User> users = userService.getUsersByUsername(loginRequest.getUsername());
@@ -40,11 +42,16 @@ public class AuthController {
 
         User user = users.get(0);
 
-        if (!PasswordUtil.matches(loginRequest.getPassword(), user.getPassword())) {
+        if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
+            logger.warn("Mot de passe incorrect pour l'utilisateur");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new AuthResponse(null, "Identifiants invalides"));
+        }
+        /**if (!PasswordUtil.matches(loginRequest.getPassword(), user.getPassword())) {
             logger.warn("Mot de passe incorrect pour l'utilisateur : " + loginRequest.getUsername());
             AuthResponse response = new AuthResponse(null, "Identifiants invalides");
             return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
-        }
+        }**/
 
         String token = jwtUtil.generateToken(user.getId());
         logger.info("Connexion réussie pour l'utilisateur : " + loginRequest.getUsername());
@@ -63,7 +70,7 @@ public class AuthController {
             return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
         }
 
-        String token = authHeader.substring(7);
+        String token = authHeader.substring(7).trim();
         Integer userId = jwtUtil.validateAndGetUserId(token);
 
         if (userId == null) {
